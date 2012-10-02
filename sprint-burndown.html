@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.6.1/jquery.min.js"></script>
+		<script type="text/javascript" src="lib/js/highcharts.js"></script>
+		
+		<!--<script type="text/javascript" src="lib/js/themes/gray.js"></script>-->
+		<script type="text/javascript" src="lib/js/modules/exporting.js"></script>
+		
+		<script type="text/javascript">
+				
+			var chart;
+			$(document).ready(function() {
+				chart = new Highcharts.Chart({
+					chart: {
+						renderTo: 'container',
+						defaultSeriesType: 'line',
+						marginRight: 130,
+						marginBottom: 25
+					},
+					title: {
+						text: 'Burndown',
+						x: -20 //center
+					},
+					subtitle: {
+						text: 'Mockup for now',
+						x: -20
+					},
+					xAxis: {
+						categories: ['Nov 11', 'Nov 14', 'Nov 15', 'Nov 16', 'Nov 17', 'Nov 18', 'Nov 21', 'Nov 22', 'Nov 23', 'Nov 24']
+					},
+					yAxis: {
+						title: {
+							text: 'Points'
+						},
+						plotLines: [{
+							value: 0,
+							width: 1,
+							color: '#808080'
+						}]
+					},
+					tooltip: {
+						formatter: function() {
+				                return '<b>'+ this.series.name +'</b><br/>'+
+								this.x +': '+ this.y +'°C';
+						}
+					},
+					legend: {
+						layout: 'vertical',
+						align: 'right',
+						verticalAlign: 'top',
+						x: -10,
+						y: 100,
+						borderWidth: 0
+					},
+					series: [{
+						name: 'Points Accepted',
+						data: [47, 47, 48, 48, 51, 51]
+					}, {
+						name: 'Points Remaining',
+						data: [47, 46, 43, 41, 35, 32]
+					}, {
+						name: 'Other Work',
+						data: [0, 2, 2, 3, 6, 6]
+					}]
+				});
+				
+				
+			});
+				
+		</script>
+	</head>
+<body>
+	<div id="container" style="width: 800px; height: 400px; margin: 0 auto"></div>
+</body>
+</html>
