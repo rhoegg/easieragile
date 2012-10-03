@@ -4,22 +4,57 @@
 	<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js" type="text/javascript"></script>
 	<script type="text/javascript" src="lib/js/highcharts.js"></script>
 	<script type="text/javascript" src="lib/js/modules/exporting.js"></script>
+	
+	<script type="text/javascript" src="lib/editablegrid-2.0.1.js"></script>
+	<link rel="stylesheet" href="lib/editablegrid-2.0.1.css" type="text/css" media="screen" />
+	
+	<script type="text/javascript">
+		// Library Extensions
+
+		// Translate EditableGrid modelChanged event to jQuery event
+		EditableGrid.prototype.modelChanged = function(rowIndex, columnIndex, previousValue, newValue, row) {
+			$(this).trigger("modelChanged", {
+				rowIndex: rowIndex,
+				columnIndex: columnIndex,
+				previousValue: previousValue,
+				newValue: newValue,
+				row: row
+			});
+		};
+		
+		function autoCreateBlankRow(editableGrid, blankRow) {
+			// If last row is edited, add a new blank row to the bottom
+			$(editableGrid).on("modelChanged", function(event, modelChangeData) {
+				if (modelChangeData.rowIndex + 1 == editableGrid.getRowCount()) {
+					editableGrid.append(editableGrid.getRowCount() + 1, blankRow)
+				}
+				return false;
+			});
+			
+		}
+		
+	</script>
+	
 	<script type="text/javascript">
 		var chart;
+		var releasesGrid;
+		var completedGrid;
 		$(document).ready(function() {
 			chart = new Highcharts.Chart({
 				chart: {
-					renderTo: 'container'
+					renderTo: 'releaseBurndownChart'
 				},
 				title: {
 					text: 'Release Plan'
 				},
 				xAxis: {
-					categories: ['Oct 2012', 'Nov 2012', 'Dec 2012', 'Jan 2013', 'Feb 2013', 'Mar 2013', 'Releases']
+					// TODO: investigate using a datetime or linear axis without losing the Releases stacked bar
+					categories: ['Oct 2012', 'Nov 2012', 'Dec 2012', 'Jan 2013', 'Feb 2013', 'Mar 2013', 'Apr 2013', 'May 2013', 'Releases']
 				},
 				yAxis: [
 					{
-						title: 'Feature Points'
+						title: 'Feature Points',
+						tickInterval: 5
 					}
 				],
 				plotOptions: {
@@ -37,61 +72,180 @@
 				},
 				series: [
 					{
-						name: 'Executive Dashboard 1.0',
+						name: 'Executive Dashboard 1.1',
 						type: 'column',
-						data: [null, null, null, null, null, null, null, 2],
-						stack: 'Releases'
+						stack: 'Releases',
+						showInLegend: false,
+						data: [null, null, null, null, null, null, null, null, 3]
 					},
 					{
 						name: 'Ticket Load v2.1',
 						type: 'column',
-						data: [null, null, null, null, null, null, null, 5],
-						stack: 'Releases'
+						stack: 'Releases',
+						showInLegend: false,
+						data: [null, null, null, null, null, null, null, null, 5]
 					},
 					{
-						name: 'Executive Dashboard 1.1',
+						name: 'Executive Dashboard 1.0',
 						type: 'column',
-						data: [null, null, null, null, null, null, null, 3],
-						stack: 'Releases'
+						stack: 'Releases',
+						showInLegend: false,
+						data: [null, null, null, null, null, null, null, null, 2]
 					},
 					{
-						name: 'Remaining',
+						name: 'Executive Dashboard v1.1',
 						type: 'line',
-						data: [10,8,8,5]
+						dashStyle: 'Dot',
+						zIndex: -2,
+						showInLegend: false,
+						marker: {
+							enabled: false
+						},
+						data: [10, 10, 10, 10, 10, 10, 10, 10, 10]
+					},
+					{
+						name: 'Ticket Load v2.1',
+						type: 'line',
+						dashStyle: 'Dot',
+						zIndex: -2,
+						showInLegend: false,
+						marker: {
+							enabled: false
+						},
+						data: [7, 7, 7, 7, 7, 7, 7, 7, 7]
 					},
 					{
 						name: 'Executive Dashboard v1.0',
 						type: 'line',
-						dashStyle: 'longdash',
+						dashStyle: 'Dot',
 						zIndex: -2,
+						showInLegend: false,
 						marker: {
 							enabled: false
 						},
-						data: [8, 8, 8, 8, 8, 8, 8, 8]
+						data: [2, 2, 2, 2, 2, 2, 2, 2, 2]
 					},
 					{
-						name: 'Ticket Load v2.1',
+						name: 'Completed',
 						type: 'line',
-						dashStyle: 'longdash',
-						zIndex: -2,
+						lineColor: '#007000',
+						lineWidth: 5,
+						data: [0,2,2,5]
+					},
+					{
+						name: 'Trend',
+						type: 'line',
+						dashStyle: 'LongDash',
+						lineColor: '#909090',
 						marker: {
 							enabled: false
 						},
-						data: [3, 3, 3, 3, 3, 3, 3, 3]
+						data: [null, null, null, null, 6, 7.5, 9, 10.5]
 					}
 				]
 			});
+			
+			releasesGrid = new EditableGrid("Releases", {
+				enableSort: false,
+				caption: 'Planned Releases'
+			});
+			releasesGrid.load({ 
+				metadata: [
+					{ 
+						name: "name", 
+						label: "Release", 
+						datatype: "string", 
+						editable: true 
+					},
+					{ 
+						name: "points", 
+						label: "Points",
+						datatype: "integer", 
+						editable: true 
+					}
+				],
+				data: [
+					{id: 1, values: {name: 'Executive Dashboard v1.0', points: 2}},
+					{id: 2, values: {name: 'Ticket Load v2.1', points: 5}},
+					{id: 3, values: {name: 'Executive Dashboard v1.1', points: 3}},
+					{id: 4, values: {name: '', points: 0}}
+				]
+			});
+			autoCreateBlankRow(releasesGrid, {
+				name: "",
+				points: 0
+			});
+			releasesGrid.renderGrid("releases", "entry");
+			
+			completedGrid = new EditableGrid("Completed", {
+				enableSort: false,
+				caption: 'Completed Points'
+			});
+			completedGrid.load({ 
+				metadata: [
+					{ 
+						name: "when", 
+						label: "When", 
+						datatype: "string", 
+						editable: true 
+					},
+					{ 
+						name: "points", 
+						label: "Points",
+						datatype: "integer", 
+						editable: true 
+					}
+				],
+				data: [
+					{id: 1, values: {when: 'Oct 2012', points: 0}},
+					{id: 2, values: {when: 'Nov 2012', points: 2}},
+					{id: 3, values: {when: 'Dec 2012', points: 0}},
+					{id: 4, values: {when: 'Jan 2013', points: 3}},
+					{id: 5, values: {when: 'Feb 2013', points: 0}},
+					{id: 6, values: {when: 'Mar 2013', points: 0}},
+					{id: 7, values: {when: 'Apr 2013', points: 0}},
+					{id: 8, values: {when: 'May 2013', points: 0}},
+					{id: 9, values: {when: '', points: 0}}
+				]
+			});
+			autoCreateBlankRow(completedGrid, {
+				when: "",
+				points: 0
+			});
+			completedGrid.renderGrid("completed", "entry");
 		});
 	</script>
 	<style type="text/css">
-		#container: {
+		#releaseBurndownChart: {
 			width: 800px;
 			height: 400px;
 			margin: 0 auto;
 		}
+		
+		table.entry {
+			border-collapse: collapse;
+			border: 1px solid #E0E0E0;
+		}
+
+		table.entry * {
+			padding: 2px;
+			border: 1px solid #E0E0E0;
+			font-family:'lucida grande', tahoma, verdana, arial, sans-serif;
+			line-height: 12pt;
+			font-size: 8pt;
+		}
+		
+		table.entry th {
+			background: #E5E5E5;
+			text-align: left;
+		}
 	</style>
 </head>
 <body>
-	<div id="container"></div>
+	<div id="releaseBurndownChart"></div>
+	<div>
+		<div id="releases" style="float: left; padding-right: 10px;"></div>
+		<div id="completed"></div>
+	</div>
 </body>
 </html>
