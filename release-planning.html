@@ -22,6 +22,12 @@
 			});
 		};
 		
+		EditableGrid.prototype.setCellRenderer = function(columnName, renderer) {
+			this.getColumn(columnName).cellRenderer = renderer;
+			renderer.editablegrid = this;
+			renderer.column = this.getColumn(columnName);
+		};
+		
 		function autoCreateBlankRow(editableGrid, blankRow) {
 			// If last row is edited, add a new blank row to the bottom
 			$(editableGrid).on("modelChanged", function(event, modelChangeData) {
@@ -77,6 +83,13 @@
 				releases.push(releasesGrid.getRowValues(i));
 			}
 			return releases;
+		}
+		
+		function getCompletedPoints() {
+			var completed = [];
+			for (var i = 0; i < completedGrid.getRowCount(); i++) {
+				
+			}
 		}
 
 		function initChart() {
@@ -150,6 +163,20 @@
 			});
 		}
 		
+		function updateReleasesChartData() {
+			var releases = getReleases();
+			var cumulativePoints = 0;
+			$.each(releases, function(i, release) {
+				var barIndex = releases.length - i - 1;
+				var lineIndex = releases.length + i;
+				cumulativePoints += release.points;
+				chart.series[barIndex].name = release.name;
+				chart.series[barIndex].setData(new ReleaseBar(release.name, release.points).data);
+				chart.series[lineIndex].name = release.name;
+				chart.series[lineIndex].setData(new ReleaseLine(release.name, cumulativePoints).data);
+			});
+		}
+		
 		function moveRelease(index, destination) {
 			var id = releasesGrid.getRowId(index);
 			var values = releasesGrid.getRowValues(index);
@@ -198,6 +225,13 @@
 			}
 		};
 		
+		function WhenCellRenderer(config) { this.init(config); }
+		WhenCellRenderer.prototype = new CellRenderer();
+		
+		WhenCellRenderer.prototype.render = function(element, value) {
+			element.innerHTML = value ? value : '<span class="newrow">When</span>';
+		}
+		
 		function initGrids() {
 			releasesGrid = new EditableGrid("Releases", {
 				enableSort: false,
@@ -230,12 +264,11 @@
 				points: 0
 			});
 			
-			var renderer = new ReleaseCellRenderer();
-			releasesGrid.getColumn("name").cellRenderer = renderer;
-			renderer.editablegrid = releasesGrid;
-			renderer.column = releasesGrid.getColumn("name");
-			
+			releasesGrid.setCellRenderer("name", new ReleaseCellRenderer());
 			releasesGrid.renderGrid("releases", "entry");
+			$(releasesGrid).on("modelChanged", function(event, data) {
+				updateReleasesChartData();
+			});
 			
 			completedGrid = new EditableGrid("Completed", {
 				enableSort: false,
@@ -261,26 +294,24 @@
 					{id: 2, values: {when: 'Nov 2012', points: 2}},
 					{id: 3, values: {when: 'Dec 2012', points: 0}},
 					{id: 4, values: {when: 'Jan 2013', points: 3}},
-					{id: 5, values: {when: 'Feb 2013', points: 0}},
-					{id: 6, values: {when: 'Mar 2013', points: 0}},
-					{id: 7, values: {when: 'Apr 2013', points: 0}},
-					{id: 8, values: {when: 'May 2013', points: 0}},
-					{id: 9, values: {when: '', points: 0}}
+					{id: 5, values: {when: 'Feb 2013', points: null}},
+					{id: 6, values: {when: 'Mar 2013', points: null}},
+					{id: 7, values: {when: 'Apr 2013', points: null}},
+					{id: 8, values: {when: 'May 2013', points: null}},
+					{id: 9, values: {when: '', points: null}}
 				]
 			});
 			autoCreateBlankRow(completedGrid, {
 				when: "",
-				points: 0
+				points: null
 			});
+			completedGrid.setCellRenderer("when", new WhenCellRenderer());
 			completedGrid.renderGrid("completed", "entry");
 		}
 
 		$(document).ready(function() {
 			initGrids();
 			initChart();
-			$('#debug').click(function() {
-				chart.series.push(new Release('Debug', 8));
-			});
 		});
 	</script>
 	<style type="text/css">
@@ -295,17 +326,21 @@
 			border: 1px solid #E0E0E0;
 		}
 
-		table.entry tr, table.entry td {
+		table.entry tr, table.entry td, table.entry caption {
 			padding: 2px;
 			border: 1px solid #E0E0E0;
 			font-family:'lucida grande', tahoma, verdana, arial, sans-serif;
 			line-height: 12pt;
 			font-size: 9pt;
+			white-space: nowrap;
 		}
 		
 		table.entry span {
-			white-space: nowrap;
 			padding: 5px;
+		}
+		
+		table.entry caption {
+			font-size: larger;
 		}
 		
 		table.entry th {
