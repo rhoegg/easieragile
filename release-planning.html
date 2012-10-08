@@ -39,7 +39,83 @@
 		var chart;
 		var releasesGrid;
 		var completedGrid;
-		$(document).ready(function() {
+		
+		var ReleaseBar = function(name, size) {
+			this.name = name;
+			this.type = 'column';
+			this.stack = 'Releases';
+			this.showInLegend = false;
+			this.data = [];
+			for (var i = 0; i < getSeriesCount() - 1; i++) {
+				this.data.push(null);
+			}
+			this.data.push(size);
+		};
+		
+		var ReleaseLine = function(name, height) {
+			this.name = name;
+			this.type = 'line';
+			this.dashStyle = 'Dot';
+			this.zIndex = -2;
+			this.showInLegend = false;
+			this.marker = {
+				enabled: false
+			};
+			this.data = [];
+			for (var i = 0; i < getSeriesCount(); i++) {
+				this.data.push(height);
+			}
+		};
+		
+		function getSeriesCount() {
+			return getReleases().length * 2 + 2 + 1;
+		}
+		
+		function getReleases() {
+			var releases = [];
+			for (var i = 0; i < releasesGrid.getRowCount() - 1; i++) { // ignore final blank row
+				releases.push(releasesGrid.getRowValues(i));
+			}
+			return releases;
+		}
+
+		function initChart() {
+			var releaseBars = [];
+			var releaseLines = [];
+			var cumulativeHeight = 0;
+			$.each(getReleases(), function(i, release) {
+				if (release.points > 0) {
+					cumulativeHeight += release.points;
+					releaseBars.splice(0, 0, new ReleaseBar(release.name, release.points));
+					releaseLines.push(new ReleaseLine(release.name, cumulativeHeight));
+				}
+			});
+			var seriesOptions = [];
+			$.each(releaseBars, function(i, bar) {
+				seriesOptions.push(bar);
+			});
+			$.each(releaseLines, function(i, line) {
+				seriesOptions.push(line);
+			});
+			seriesOptions.push({ // completed line
+				name: 'Completed',
+				type: 'line',
+				lineColor: '#007000',
+				lineWidth: 5,
+				data: [0,2,2,5]
+			});
+			seriesOptions.push({
+				name: 'Trend',
+				type: 'line',
+				dashStyle: 'LongDash',
+				lineColor: '#909090',
+				marker: {
+					enabled: false
+				},
+				data: [null, null, null, null, 6, 7.5, 9, 10.5]
+			});
+			
+			if (chart) chart.destroy();
 			chart = new Highcharts.Chart({
 				chart: {
 					renderTo: 'releaseBurndownChart'
@@ -70,81 +146,59 @@
 						}
 					}
 				},
-				series: [
-					{
-						name: 'Executive Dashboard 1.1',
-						type: 'column',
-						stack: 'Releases',
-						showInLegend: false,
-						data: [null, null, null, null, null, null, null, null, 3]
-					},
-					{
-						name: 'Ticket Load v2.1',
-						type: 'column',
-						stack: 'Releases',
-						showInLegend: false,
-						data: [null, null, null, null, null, null, null, null, 5]
-					},
-					{
-						name: 'Executive Dashboard 1.0',
-						type: 'column',
-						stack: 'Releases',
-						showInLegend: false,
-						data: [null, null, null, null, null, null, null, null, 2]
-					},
-					{
-						name: 'Executive Dashboard v1.1',
-						type: 'line',
-						dashStyle: 'Dot',
-						zIndex: -2,
-						showInLegend: false,
-						marker: {
-							enabled: false
-						},
-						data: [10, 10, 10, 10, 10, 10, 10, 10, 10]
-					},
-					{
-						name: 'Ticket Load v2.1',
-						type: 'line',
-						dashStyle: 'Dot',
-						zIndex: -2,
-						showInLegend: false,
-						marker: {
-							enabled: false
-						},
-						data: [7, 7, 7, 7, 7, 7, 7, 7, 7]
-					},
-					{
-						name: 'Executive Dashboard v1.0',
-						type: 'line',
-						dashStyle: 'Dot',
-						zIndex: -2,
-						showInLegend: false,
-						marker: {
-							enabled: false
-						},
-						data: [2, 2, 2, 2, 2, 2, 2, 2, 2]
-					},
-					{
-						name: 'Completed',
-						type: 'line',
-						lineColor: '#007000',
-						lineWidth: 5,
-						data: [0,2,2,5]
-					},
-					{
-						name: 'Trend',
-						type: 'line',
-						dashStyle: 'LongDash',
-						lineColor: '#909090',
-						marker: {
-							enabled: false
-						},
-						data: [null, null, null, null, 6, 7.5, 9, 10.5]
-					}
-				]
+				series: seriesOptions
 			});
-			
+		}
+		
+		function moveRelease(index, destination) {
+			var id = releasesGrid.getRowId(index);
+			var values = releasesGrid.getRowValues(index);
+			releasesGrid.remove(index);
+			releasesGrid.insert(destination, id, values);
+			initChart();
+		}
+		
+		function promoteRelease(index) {
+			if (index < 1 || index >= releasesGrid.getRowCount() - 1) return;
+			moveRelease(index, index - 1);
+		};
+		
+		function demoteRelease(index) {
+			if (index < 0 || index >= releasesGrid.getRowCount() - 2) return;
+			moveRelease(index, index + 1);
+		}
+		
+		function ReleaseCellRenderer(config) { this.init(config); }
+		ReleaseCellRenderer.prototype = new CellRenderer();
+		
+		ReleaseCellRenderer.prototype.render = function(element, value) {
+			if (value) {
+				element.innerHTML = "";
+				var promoteButton = document.createElement("img");
+				promoteButton.setAttribute("class", "button");
+				promoteButton.setAttribute("src", "lib/images/bullet_arrow_up.png");
+				element.appendChild(promoteButton);
+				$(promoteButton).click(function() {
+					promoteRelease(element.rowIndex);
+					return false;
+				});
+				var demoteButton = document.createElement("img");
+				demoteButton.setAttribute("src", "lib/images/bullet_arrow_down.png");
+				demoteButton.setAttribute("class", "button");
+				element.appendChild(demoteButton);
+				$(demoteButton).click(function() {
+					demoteRelease(element.rowIndex);
+					return false;
+				});
+				var name = document.createElement("span");
+				name.textContent = value;
+				element.appendChild(name);
+			} else {
+				element.innerHTML = '<span class="newrow">Release Name</i>';
+			}
+		};
+		
+		function initGrids() {
 			releasesGrid = new EditableGrid("Releases", {
 				enableSort: false,
 				caption: 'Planned Releases'
@@ -155,7 +209,7 @@
 						name: "name", 
 						label: "Release", 
 						datatype: "string", 
-						editable: true 
+						editable: true
 					},
 					{ 
 						name: "points", 
@@ -175,6 +229,12 @@
 				name: "",
 				points: 0
 			});
+			
+			var renderer = new ReleaseCellRenderer();
+			releasesGrid.getColumn("name").cellRenderer = renderer;
+			renderer.editablegrid = releasesGrid;
+			renderer.column = releasesGrid.getColumn("name");
+			
 			releasesGrid.renderGrid("releases", "entry");
 			
 			completedGrid = new EditableGrid("Completed", {
@@ -213,6 +273,14 @@
 				points: 0
 			});
 			completedGrid.renderGrid("completed", "entry");
+		}
+
+		$(document).ready(function() {
+			initGrids();
+			initChart();
+			$('#debug').click(function() {
+				chart.series.push(new Release('Debug', 8));
+			});
 		});
 	</script>
 	<style type="text/css">
@@ -227,17 +295,32 @@
 			border: 1px solid #E0E0E0;
 		}
 
-		table.entry * {
+		table.entry tr, table.entry td {
 			padding: 2px;
 			border: 1px solid #E0E0E0;
 			font-family:'lucida grande', tahoma, verdana, arial, sans-serif;
 			line-height: 12pt;
-			font-size: 8pt;
+			font-size: 9pt;
+		}
+		
+		table.entry span {
+			white-space: nowrap;
+			padding: 5px;
 		}
 		
 		table.entry th {
 			background: #E5E5E5;
 			text-align: left;
+		}
+		
+		table.entry .newrow {
+			color: #808080;
+			font-style: italic;
+		}
+		
+		table.entry img.button {
+			padding: 3px;
+			border: 1px solid lightgray;
 		}
 	</style>
 </head>
