@@ -34,9 +34,41 @@
 				if (modelChangeData.rowIndex + 1 == editableGrid.getRowCount()) {
 					editableGrid.append(editableGrid.getRowCount() + 1, blankRow)
 				}
+				$(this).trigger("rowAdded", modelChangeData);
 				return false;
 			});
 			
+		}
+		
+		// Prediction
+		
+		// return slope and intercept for values, using ordinal position for x
+		function linearRegression(knownValues) {
+			var n = knownValues.length;
+			var sumX = 0; var sumY = 0; var sumXY = 0; var sumX2 = 0;
+			$.each(knownValues, function(x, y) {
+				sumX += x;
+				sumY += y;
+				sumXY += x * y;
+				sumX2 += x * x;
+			});
+			return { 
+				slope: (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX), 
+				intercept: (sumY * sumX2 - sumX * sumXY) / (n * sumX2 - sumX * sumX)
+			};
+		}
+		
+		// predict future progress using linear regression
+		function predict(knownValues, totalSteps) {
+			var regression = linearRegression(knownValues);
+			var predicted = [];
+			for (var i = 0; i < knownValues.length; i++) {
+				predicted.push(null); // TODO: I think this can be done more elegantly with apply()
+			}
+			for (var i = knownValues.length; i < totalSteps; i++) {
+				predicted.push(regression.slope * i + regression.intercept);
+			}
+			return predicted;
 		}
 		
 	</script>
@@ -80,7 +112,8 @@
 		function getReleases() {
 			var releases = [];
 			for (var i = 0; i < releasesGrid.getRowCount() - 1; i++) { // ignore final blank row
-				releases.push(releasesGrid.getRowValues(i));
+				var release = releasesGrid.getRowValues(i);
+				if (release.points > 0) releases.push(release);
 			}
 			return releases;
 		}
@@ -88,7 +121,7 @@
 		function getCompletedPoints() {
 			var completed = [];
 			for (var i = 0; i < completedGrid.getRowCount(); i++) {
-				
+				// TODO finish this
 			}
 		}
 
@@ -125,7 +158,7 @@
 				marker: {
 					enabled: false
 				},
-				data: [null, null, null, null, 6, 7.5, 9, 10.5]
+				data: predict([0,2,2,5], 8)
 			});
 			
 			if (chart) chart.destroy();
@@ -163,7 +196,7 @@
 			});
 		}
 		
-		function updateReleasesChartData() {
+		function updateReleasesChartData(modelChangeData) {
 			var releases = getReleases();
 			var cumulativePoints = 0;
 			$.each(releases, function(i, release) {
@@ -267,7 +300,10 @@
 			releasesGrid.setCellRenderer("name", new ReleaseCellRenderer());
 			releasesGrid.renderGrid("releases", "entry");
 			$(releasesGrid).on("modelChanged", function(event, data) {
-				updateReleasesChartData();
+				updateReleasesChartData(data);
+			});
+			$(releasesGrid).on("rowAdded", function(event, data) {
+				initChart();
 			});
 			
 			completedGrid = new EditableGrid("Completed", {
